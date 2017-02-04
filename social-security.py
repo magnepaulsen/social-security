@@ -4,14 +4,9 @@ from lxml import html
 import requests
 import numpy as np 
 import re
-import datetime
+from datetime import datetime
+from collections import Counter
 
-def main():
-    url = 'https://www.nav.no/no/NAV+og+samfunn/Kontakt+NAV/Utbetalinger/Grunnbelopet+i+folketrygden'
-    data_website = read_website(url) #Read raw data from website
-    processed_data = process_data(data_website) #Process data to readable format
-    g_amounts_year = avg_g_amounts(processed_data) #Calculate average G amounts per year
-    
 def read_website(url):
     #Read Norwegian social security base amount data from NAV website
     page = requests.get(url)
@@ -30,18 +25,58 @@ def process_data(rawdata):
 
     g_amounts = [x.strip('kr') for x in g_amounts] #Remove currency
     g_amounts = [re.sub("[^0-9]", "", x) for x in g_amounts] #Remove all non-number characters
-    g_amounts = map(int, g_amounts)
-        
+    g_amounts = map(float, g_amounts)
+    g_amounts.reverse()
+    
     #Extract the dates from the raw data
     dates = rawdata[0:19:6]
     dates.append(rawdata[23])
-    dates.append(rawdata[28::5])
+    dates = dates + rawdata[28::5]
+    dates.reverse()
+    return dates, g_amounts
 
-    return [dates, g_amounts]
+def avg_g_amounts(dates, g_amounts):
+    #Calculate average social security base (G) amount per year. There could be one or multiple amounts per year
+    avgGamounts = {}
+    years=[]
+    
+    for x in dates:
+        years.append(x.year)
 
-def avg_g_amounts(dates_gamounts):
-    print dates_gamounts
-    return 0
+    count_years = Counter(years) #count the number of social security base amounts per year
+    
+    for i in range(len(dates)):
+        if count_years[dates[i].year] == 1:
+            if i==len(dates)-1:
+                avgGamounts[dates[i].year] = g_amounts[i]*(12-dates[i].month+1)/12.0 + g_amounts[i-1]*(1-(12-dates[i].month+1)/12.0)
+            else:
+                avgGamounts[dates[i].year] = g_amounts[i]*(12-dates[i].month+1)/12.0 + g_amounts[i-1]*(1-(12-dates[i].month+1)/12.0)
+        else:
+            if count_years[dates[i].year] == 2 and dates[i].year!=dates[i-1].year:
+                #2 social security base amount changes in year
+                if dates[i].month == 1:
+                    avgGamounts[dates[i].year] = g_amounts[i]*(dates[i+1].month-1)/12.0 + g_amounts[i+1]*(12-dates[i+1].month+1)/12.0
+                else:
+                    avgGamounts[dates[i].year] = g_amounts[i-1]*(dates[i].month-1)/12.0 + g_amounts[i]*(dates[i+1].month-dates[i].month)/12.0 + g_amounts[i+1]*(12-dates[i+1].month+1)/12.0
+            else:
+                if dates[i].year!=dates[i-1].year:
+                    #3 social security base amount changes in year. Assumes that the first change is on January 1
+                    avgGamounts[dates[i].year] = g_amounts[i]*(dates[i+1].month-1)/12.0 + g_amounts[i+1]*(dates[i+2].month-dates[i+1].month)/12.0 + g_amounts[i+2]*(12-dates[i+2].month+1)/12.0
+    
+    return avgGamounts
 
+def convert_dates(dates):
+    #Convert dates from string to datetime objects
+    converted_dates = [datetime.strptime(x, "%d.%m.%Y") for x in dates]
+    return converted_dates
+
+def main():
+    url = 'https://www.nav.no/no/NAV+og+samfunn/Kontakt+NAV/Utbetalinger/Grunnbelopet+i+folketrygden'
+    data_website = read_website(url) #Read raw data from website
+    dates, g_amounts = process_data(data_website) #Process data to readable format
+    dates = convert_dates(dates)
+    avg_base_amounts = avg_g_amounts(dates, g_amounts) #Calculate average G amounts per year
+
+    
 if __name__ == '__main__':
     main()
