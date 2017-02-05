@@ -2,10 +2,11 @@
 
 from lxml import html
 import requests
-import numpy as np 
+from scipy import stats 
 import re
 from datetime import datetime
 from collections import Counter
+from pylab import plot,show
 
 def read_website(url):
     #Read Norwegian social security base amount data from NAV website
@@ -70,13 +71,34 @@ def convert_dates(dates):
     converted_dates = [datetime.strptime(x, "%d.%m.%Y") for x in dates]
     return converted_dates
 
+def g_increase(base_amounts):
+    #Calculate the percentage increase of the social security base amount (G) per year
+    years = base_amounts.keys()
+    yrly_base_amounts = base_amounts.values()
+    yrly_increases = [100*(yrly_base_amounts[i]/yrly_base_amounts[i-1]-1) for i in range(1,len(yrly_base_amounts))]
+    return yrly_increases
+
+def regression_fit(g_increases, years):
+    #Fit linear regression line for the yearly social security base amount (G) increase    
+    years = years[1:len(years)]
+    slope, intercept, r_value, p_value, std_err = stats.linregress(years, g_increases)
+
+    print 'r value', r_value
+    print  'p_value', p_value
+    print 'standard deviation', std_err
+
+    line = slope*years+intercept
+    plot(years,line,'r-',years,g_increases,'o')
+    show()
+
 def main():
     url = 'https://www.nav.no/no/NAV+og+samfunn/Kontakt+NAV/Utbetalinger/Grunnbelopet+i+folketrygden'
     data_website = read_website(url) #Read raw data from website
     dates, g_amounts = process_data(data_website) #Process data to readable format
     dates = convert_dates(dates)
     avg_base_amounts = avg_g_amounts(dates, g_amounts) #Calculate average G amounts per year
-
+    g_increases = g_increase(avg_base_amounts)
+    reg_model = regression_fit(g_increases, avg_base_amounts.keys())
     
 if __name__ == '__main__':
     main()
