@@ -63,7 +63,7 @@ def avg_g_amounts(dates, g_amounts):
                 if dates[i].year!=dates[i-1].year:
                     #3 social security base amount changes in year. Assumes that the first change is on January 1
                     avgGamounts[dates[i].year] = g_amounts[i]*(dates[i+1].month-1)/12.0 + g_amounts[i+1]*(dates[i+2].month-dates[i+1].month)/12.0 + g_amounts[i+2]*(12-dates[i+2].month+1)/12.0
-    
+                    
     return avgGamounts
 
 def convert_dates(dates):
@@ -80,16 +80,18 @@ def g_increase(base_amounts):
 
 def regression_fit(g_increases, years):
     #Fit linear regression line for the yearly social security base amount (G) increase    
-    years = years[1:len(years)]
-    slope, intercept, r_value, p_value, std_err = stats.linregress(years, g_increases)
 
+    slope, intercept, r_value, p_value, std_err = stats.linregress(years, g_increases)
+    
     print 'r value', r_value
     print  'p_value', p_value
     print 'standard deviation', std_err
-
-    line = slope*years+intercept
+    
+    line = [slope*x + intercept for x in years]
+    
     plot(years,line,'r-',years,g_increases,'o')
     show()
+    return line
 
 def main():
     url = 'https://www.nav.no/no/NAV+og+samfunn/Kontakt+NAV/Utbetalinger/Grunnbelopet+i+folketrygden'
@@ -98,7 +100,7 @@ def main():
     dates = convert_dates(dates)
     avg_base_amounts = avg_g_amounts(dates, g_amounts) #Calculate average G amounts per year
     g_increases = g_increase(avg_base_amounts)
-    reg_model = regression_fit(g_increases, avg_base_amounts.keys())
+    reg_model = regression_fit(avg_base_amounts.values(), avg_base_amounts.keys())
     
 if __name__ == '__main__':
     main()
