@@ -1,14 +1,14 @@
 # social-security
 Program to download and analyze the Norwegian social security base amounts (G)
 
-Contributor
+Contributor: 
 Magne Paulsen
 magne83@hotmail.com
 
-Project Name
+Project Name: 
 Norwegian Social Security Base Amount Analytics Tool
 
-Description
+Description: 
 The program downloads, processes and analyzes the Norwegian social security base amounts (G). 
 The base amount is used to calculate maximum pensionable income, and the limits for occupational pension contributions.
 The frequency and the size of the increases have varied since the Norwegian social security scheme was introduced in 1967. 
